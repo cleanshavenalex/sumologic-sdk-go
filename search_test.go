@@ -70,7 +70,7 @@ func TestGetSearchStatus(t *testing.T) {
 			t.Errorf("Expected request to ‘%s’, got ‘%s’", expectedURL, r.URL.EscapedPath())
 		}
 		body, _ := json.Marshal(SearchJobStatusResponse{
-			State: "GATHERING RESULTS",
+			State: GatheringResults,
 		})
 		w.Write(body)
 	}))
@@ -128,15 +128,15 @@ func TestGetSearchResults(t *testing.T) {
 	// 	}
 	//  ]
 	// }
-	var fields []*SearchJobResultField
-	var messages []*SearchJobResultMessage
-	field0 := &SearchJobResultField{
+	var fields []SearchJobResultField
+	var messages []SearchJobResultMessage
+	field0 := SearchJobResultField{
 		Name:      "_messageid",
 		FieldType: "long",
 		KeyField:  false,
 	}
 	fields = append(fields, field0)
-	field1 := &SearchJobResultField{
+	field1 := SearchJobResultField{
 		Name:      "_raw",
 		FieldType: "string",
 	}
@@ -145,13 +145,13 @@ func TestGetSearchResults(t *testing.T) {
 	message1map := make(map[string]interface{})
 	message0map["_messageid"] = "messsageZero"
 	message0map["_raw"] = `{ "host" : "test.host0", "client_ip" : "0.0.0.0", "number" : "0" }`
-	message0 := &SearchJobResultMessage{
+	message0 := SearchJobResultMessage{
 		Map: message0map,
 	}
 	messages = append(messages, message0)
 	message1map["_messageid"] = "messageOne"
 	message1map["_raw"] = `{ "host" : "test.host1", "client_ip" : "127.0.0.1", "number" : "1" }`
-	message1 := &SearchJobResultMessage{
+	message1 := SearchJobResultMessage{
 		Map: message1map,
 	}
 	messages = append(messages, message1)
