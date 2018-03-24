@@ -56,10 +56,10 @@ const (
 // StartSearch calls the Sumologic API Search Endpoint.
 // POST search/jobs
 func (c *Client) StartSearch(ssr StartSearchRequest) (*SearchJob, error) {
-	body, _ := json.Marshal(ssr)
-	// if err != nil {
-	// 	return nil, errors.Annotate(err, "failed to create post body")
-	// }
+	body, err := json.Marshal(ssr)
+	if err != nil {
+		return nil, errors.Annotate(err, "failed to create post body")
+	}
 	relativeURL, _ := url.Parse("search/jobs")
 	url := c.EndpointURL.ResolveReference(relativeURL)
 

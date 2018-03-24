@@ -31,7 +31,7 @@ func main() {
 
 	searchJob, err := sumoClient.StartSearch(sumologic.StartSearchRequest{
 		Query:    os.Getenv("SUMO_QUERY"),
-		From:     fmt.Sprintf(time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339)),
+		From:     fmt.Sprintf(time.Now().Add(-15 * time.Minute).UTC().Format(time.RFC3339)),
 		To:       fmt.Sprintf(time.Now().UTC().Format(time.RFC3339)),
 		TimeZone: "PST",
 	})
