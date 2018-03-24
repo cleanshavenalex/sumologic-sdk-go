@@ -36,10 +36,12 @@ type StartSearchRequest struct {
 
 // SearchJob represents a search job in Sumologic, returned after starting a search.
 type SearchJob struct {
-	Status  int    `json:"status"`
-	ID      string `json:"id,omitempty"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Status    int    `json:"status"`
+	ID        string `json:"id,omitempty"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	apiClient *Client
+	cookies   []*http.Cookie
 }
 
 // The different states a search job could be in.
@@ -53,11 +55,11 @@ const (
 
 // StartSearch calls the Sumologic API Search Endpoint.
 // POST search/jobs
-func (c *Client) StartSearch(ssr StartSearchRequest) (*SearchJob, []*http.Cookie, error) {
-	body, err := json.Marshal(ssr)
-	if err != nil {
-		return nil, nil, errors.Annotate(err, "failed to create post body")
-	}
+func (c *Client) StartSearch(ssr StartSearchRequest) (*SearchJob, error) {
+	body, _ := json.Marshal(ssr)
+	// if err != nil {
+	// 	return nil, errors.Annotate(err, "failed to create post body")
+	// }
 	relativeURL, _ := url.Parse("search/jobs")
 	url := c.EndpointURL.ResolveReference(relativeURL)
 
@@ -68,34 +70,35 @@ func (c *Client) StartSearch(ssr StartSearchRequest) (*SearchJob, []*http.Cookie
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, errors.Annotate(err, "StartSearch request failed")
+		return nil, errors.Annotate(err, "StartSearch request failed")
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, errors.Annotate(err, "failed to read resp.Body")
+		return nil, errors.Annotate(err, "failed to read resp.Body")
 	}
 	switch resp.StatusCode {
 	case http.StatusAccepted:
 		sj := &SearchJob{}
-
 		err = json.Unmarshal(responseBody, &sj)
 		if err != nil {
-			return nil, nil, errors.Annotate(err, "failed to parse start search response")
+			return nil, errors.Annotate(err, "failed to parse start search response")
 		}
-		return sj, resp.Cookies(), nil
+		sj.cookies = resp.Cookies()
+		sj.apiClient = c
+		return sj, nil
 	case http.StatusUnauthorized:
-		return nil, nil, ErrClientAuthenticationError
+		return nil, ErrClientAuthenticationError
 	case http.StatusBadRequest:
 		sj := SearchJob{}
 		err = json.Unmarshal(responseBody, &sj)
 		if err != nil {
-			return nil, nil, errors.Annotate(err, "failed to parse bad request response")
+			return nil, errors.Annotate(err, "failed to parse bad request response")
 		}
-		return nil, nil, errors.Annotatef(err, "Start SearchJob BadRequest, %v, %v", sj.Code, sj.Message)
+		return nil, errors.Annotatef(err, "Start SearchJob BadRequest, %v, %v", sj.Code, sj.Message)
 	default:
-		return nil, nil, errors.Annotatef(err, "unexepected http status code %v", resp.StatusCode)
+		return nil, errors.Annotatef(err, "unexepected http status code %v", resp.StatusCode)
 	}
 }
 
@@ -116,15 +119,15 @@ type SearchJobStatusResponse struct {
 	PendingErrors   []string           `json:"pendingErrors"`
 }
 
-// GetSearchJobStatus retrieves the status of a running job.
-func (c *Client) GetSearchJobStatus(searchJobID string, cookies []*http.Cookie) (*SearchJobStatusResponse, error) {
+// GetStatus retrieves the status of a running job.
+func (sj *SearchJob) GetStatus() (*SearchJobStatusResponse, error) {
 
-	relativeURL, _ := url.Parse(fmt.Sprintf("search/jobs/%s", searchJobID))
-	url := c.EndpointURL.ResolveReference(relativeURL)
+	relativeURL, _ := url.Parse(fmt.Sprintf("search/jobs/%s", sj.ID))
+	url := sj.apiClient.EndpointURL.ResolveReference(relativeURL)
 	req, err := http.NewRequest("GET", url.String(), nil)
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic "+c.AuthToken)
-	for _, v := range cookies {
+	req.Header.Add("Authorization", "Basic "+sj.apiClient.AuthToken)
+	for _, v := range sj.cookies {
 		req.AddCookie(v)
 	}
 
@@ -180,21 +183,24 @@ type SearchJobResult struct {
 }
 
 // GetSearchResults will retrieve the messages from a finished search job.
-func (c *Client) GetSearchResults(sjrr SearchJobResultsRequest, cookies []*http.Cookie) (*SearchJobResult, error) {
-	relativeURL, err := url.Parse(fmt.Sprintf("search/jobs/%s/messages", sjrr.ID))
+func (sj *SearchJob) GetSearchResults(offset int, limit int) (*SearchJobResult, error) {
+	relativeURL, err := url.Parse(fmt.Sprintf("search/jobs/%s/messages", sj.ID))
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to create relativeURL from ID : %v", sjrr.ID)
+		return nil, errors.Annotatef(err, "failed to create relativeURL from ID : %v", sj.ID)
 	}
-	url := c.EndpointURL.ResolveReference(relativeURL)
+	url := sj.apiClient.EndpointURL.ResolveReference(relativeURL)
 	req, err := http.NewRequest("GET", url.String(), nil)
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic "+c.AuthToken)
-	for _, v := range cookies {
+	req.Header.Add("Authorization", "Basic "+sj.apiClient.AuthToken)
+	for _, v := range sj.cookies {
 		req.AddCookie(v)
 	}
 	q := req.URL.Query()
-	q.Add("offset", strconv.Itoa(sjrr.Offset))
-	q.Add("limit", strconv.Itoa(sjrr.Limit))
+	// TODO add more tests
+	// check sumo api response if offset not defined and add test case
+	// same for limit
+	q.Add("offset", strconv.Itoa(offset))
+	q.Add("limit", strconv.Itoa(limit))
 	req.URL.RawQuery = q.Encode()
 
 	client := &http.Client{}
