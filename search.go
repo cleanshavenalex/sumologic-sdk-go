@@ -40,14 +40,14 @@ type SearchJob struct {
 	Message string `json:"message"`
 }
 
-// SearchJobStates are the different states a search job can be in.
-var SearchJobStates = map[string]string{
-	"NOT STARTED":            "Search job has not been started yet.",
-	"GATHERING RESULTS":      "Search job is still gathering more results, however results might already be available.",
-	"FORCE PAUSED":           "Query that is paused by the system. It is true only for non-aggregate queries that are paused at the limit of 100k. This limit is dynamic and may vary from customer to customer.",
-	"DONE GATHERING RESULTS": "Search job is done gathering results; the entire specified time range has been covered.",
-	"CANCELED":               "The search job has been canceled.",
-}
+// The different states a search job could be in.
+const (
+	NotStarted           = "NOT STARTED"
+	GatheringResults     = "GATHERING RESULTS"
+	ForcePaused          = "FORCED PAUSED"
+	DoneGatheringResults = "DONE GATHERING RESULTS"
+	Canceled             = "CANCELED"
+)
 
 // StartSearch calls the Sumologic API Search Endpoint.
 // POST search/jobs
