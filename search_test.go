@@ -70,7 +70,7 @@ func TestGetSearchStatus(t *testing.T) {
 			t.Errorf("Expected request to ‘%s’, got ‘%s’", expectedURL, r.URL.EscapedPath())
 		}
 		body, _ := json.Marshal(SearchJobStatusResponse{
-			State: "GATHERING RESULTS",
+			State: GatheringResults,
 		})
 		w.Write(body)
 	}))
