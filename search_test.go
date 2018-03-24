@@ -54,7 +54,7 @@ func TestStartSearch(t *testing.T) {
 	}
 }
 
-func TestGetSearchStatus(t *testing.T) {
+func TestGetStatus(t *testing.T) {
 
 	testSearchJob := SearchJob{
 		ID:      "testsearchjob",
@@ -89,6 +89,35 @@ func TestGetSearchStatus(t *testing.T) {
 		return
 	}
 
+}
+
+func TestGetStatusSearchJobDoesntExist(t *testing.T) {
+	testSearchJob := SearchJob{
+		ID: "wrongSearchJobID",
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		if r.Method != "GET" {
+			t.Errorf("Expected ‘GET’ request, got ‘%s’", r.Method)
+		}
+		expectedURL := fmt.Sprintf("/search/jobs/%s", testSearchJob.ID)
+		if r.URL.EscapedPath() != expectedURL {
+			t.Errorf("Expected request to ‘%s’, got ‘%s’", expectedURL, r.URL.EscapedPath())
+		}
+	}))
+	defer ts.Close()
+
+	c, err := NewClient("accessToken", ts.URL)
+	if err != nil {
+		t.Errorf("NewClient() returned an error: %s", err)
+		return
+	}
+	testSearchJob.apiClient = c
+	_, err = testSearchJob.GetStatus()
+	if err != ErrSearchJobNotFound {
+		t.Errorf("SearchJob.GetStatus() returned the wrong error: %s", err)
+		return
+	}
 }
 
 func TestGetSearchResults(t *testing.T) {
@@ -140,20 +169,24 @@ func TestGetSearchResults(t *testing.T) {
 		FieldType: "string",
 	}
 	fields = append(fields, field1)
-	message0map := make(map[string]interface{})
-	message1map := make(map[string]interface{})
-	message0map["_messageid"] = "messsageZero"
-	message0map["_raw"] = `{ "host" : "test.host0", "client_ip" : "0.0.0.0", "number" : "0" }`
-	message0 := SearchJobResultMessage{
-		Map: message0map,
-	}
-	messages = append(messages, message0)
-	message1map["_messageid"] = "messageOne"
-	message1map["_raw"] = `{ "host" : "test.host1", "client_ip" : "127.0.0.1", "number" : "1" }`
-	message1 := SearchJobResultMessage{
-		Map: message1map,
-	}
-	messages = append(messages, message1)
+	// message0map := make(map[string]interface{})
+	// message1map := make(map[string]interface{})
+	// message0map["_messageid"] = "messsageZero"
+	// message0map["_raw"] = `{ "host" : "test.host0", "client_ip" : "0.0.0.0", "number" : "0" }`
+	// message0 := SearchJobResultMessage{
+	// 	Map: message0map,
+	// }
+	// messages = append(messages, message0)
+	// message1map["_messageid"] = "messageOne"
+	// message1map["_raw"] = `{ "host" : "test.host1", "client_ip" : "127.0.0.1", "number" : "1" }`
+	// message1 := SearchJobResultMessage{
+	// 	Map: message1map,
+	// }
+	// messages = append(messages, message1)
+	message0map := SearchJobResultMessage{Map: []byte(`{ "host" : "test.host0", "client_ip" : "0.0.0.0", "number" : "0" }`)}
+	message1map := SearchJobResultMessage{Map: []byte(`{ "host" : "test.host1", "client_ip" : "127.0.0.1", "number" : "1" }`)}
+	messages = append(messages, message0map)
+	messages = append(messages, message1map)
 	testSearchJobResult := SearchJobResult{
 		Fields:   fields,
 		Messages: messages,

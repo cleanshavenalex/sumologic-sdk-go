@@ -44,6 +44,9 @@ type SearchJob struct {
 	cookies   []*http.Cookie
 }
 
+// ErrSearchJobNotFound is returned when the Search Job ID passed was not found
+var ErrSearchJobNotFound = errors.New("Job ID is invalid")
+
 // The different states a search job could be in.
 const (
 	NotStarted           = "NOT STARTED"
@@ -148,6 +151,8 @@ func (sj *SearchJob) GetStatus() (*SearchJobStatusResponse, error) {
 			return nil, errors.Annotate(err, "GetSearchJobStatus failed to parse response")
 		}
 		return jobStatus, nil
+	case http.StatusNotFound:
+		return nil, ErrSearchJobNotFound
 	default:
 		return nil, errors.Annotatef(err, "GetSearchJobStatus response status not OK : %v", resp.StatusCode)
 	}
@@ -169,11 +174,7 @@ type SearchJobResultField struct {
 
 // SearchJobResultMessage represents one message from a search job result.
 type SearchJobResultMessage struct {
-	// not 100% sure about this or if it should be map[string]interface{}, map[string]string or completely different approach.
-	// Depending on the origin of the log, the structure of this may vary.
-	// The thought is apps including this package will define a struct for the specific message types
-	// and parse the _raw field into that struct of for the app's use case.
-	Map map[string]interface{} `json:"map"`
+	Map []byte `json:"map"`
 }
 
 // SearchJobResult represents a search job result
