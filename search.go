@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/juju/errors"
 )
 
 // https://help.sumologic.com/APIs/Search-Job-API/About-the-Search-Job-API#Creating_a_search_job
@@ -126,7 +128,7 @@ func (c *Client) GetSearchJobStatus(searchJobID string, cookies []*http.Cookie) 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Annotate(err, "GetSearchJobStatus api request failed")
 	}
 	defer resp.Body.Close()
 
@@ -137,11 +139,11 @@ func (c *Client) GetSearchJobStatus(searchJobID string, cookies []*http.Cookie) 
 		var jobStatus = new(SearchJobStatusResponse)
 		err = json.Unmarshal(responseBody, &jobStatus)
 		if err != nil {
-			return nil, err
+			return nil, errors.Annotate(err, "GetSearchJobStatus failed to parse response")
 		}
 		return jobStatus, nil
 	default:
-		return nil, fmt.Errorf("Status not OK : %v", resp.StatusCode)
+		return nil, errors.Annotatef(err, "GetSearchJobStatus response status not OK : %v", resp.StatusCode)
 	}
 }
 
@@ -192,7 +194,7 @@ func (c *Client) GetSearchResults(sjrr SearchJobResultsRequest, cookies []*http.
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Annotate(err, "GetSearchResults request to get search job messages failed")
 	}
 	defer resp.Body.Close()
 
@@ -203,11 +205,11 @@ func (c *Client) GetSearchResults(sjrr SearchJobResultsRequest, cookies []*http.
 		var searchResult = new(SearchJobResult)
 		err = json.Unmarshal(responseBody, &searchResult)
 		if err != nil {
-			return nil, err
+			return nil, errors.Annotate(err, "GetSearchResults failed to parse successful response")
 		}
 		return searchResult, nil
 	default:
-		return nil, fmt.Errorf("Status not OK : %v", resp.StatusCode)
+		return nil, errors.Annotatef(err, "Status not OK : %v", resp.StatusCode)
 	}
 
 }
