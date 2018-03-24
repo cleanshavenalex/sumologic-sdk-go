@@ -42,7 +42,7 @@ func TestStartSearch(t *testing.T) {
 		return
 	}
 
-	startSearchResponse, _, err := c.StartSearch(testStartSearch)
+	startSearchResponse, err := c.StartSearch(testStartSearch)
 	if err != nil {
 		t.Errorf("StartSearch() returned an error: %s", err)
 		return
@@ -55,9 +55,10 @@ func TestStartSearch(t *testing.T) {
 }
 
 func TestGetSearchStatus(t *testing.T) {
-	// req.Header.Set("Cookie", "name=xxxx; count=x")
+
 	testSearchJob := SearchJob{
-		ID: "testsearchjob",
+		ID:      "testsearchjob",
+		cookies: nil,
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,22 +82,20 @@ func TestGetSearchStatus(t *testing.T) {
 		t.Errorf("NewClient() returned an error: %s", err)
 		return
 	}
-	var cookies []*http.Cookie
-	_, err = c.GetSearchJobStatus(testSearchJob.ID, cookies)
+	testSearchJob.apiClient = c
+	_, err = testSearchJob.GetStatus()
 	if err != nil {
-		t.Errorf("GetSearchJobStatus() returned an error: %s", err)
+		t.Errorf("testSearchJob.GetStatus() returned an error: %s", err)
 		return
 	}
 
 }
 
 func TestGetSearchResults(t *testing.T) {
-	testSearchJobResultsRequest := SearchJobResultsRequest{
-		ID:     "testGetSearchResultsFakeId",
-		Offset: 0,
-		Limit:  2,
-	}
 
+	testSearchJob := SearchJob{
+		ID: "testGetSearchResultsFakeId",
+	}
 	// mock Search Result response
 	// intended to create a slimmed down verion of the sample from the sumo search api docs
 	// https://help.sumologic.com/APIs/Search-Job-API/About-the-Search-Job-API
@@ -128,15 +127,15 @@ func TestGetSearchResults(t *testing.T) {
 	// 	}
 	//  ]
 	// }
-	var fields []*SearchJobResultField
-	var messages []*SearchJobResultMessage
-	field0 := &SearchJobResultField{
+	var fields []SearchJobResultField
+	var messages []SearchJobResultMessage
+	field0 := SearchJobResultField{
 		Name:      "_messageid",
 		FieldType: "long",
 		KeyField:  false,
 	}
 	fields = append(fields, field0)
-	field1 := &SearchJobResultField{
+	field1 := SearchJobResultField{
 		Name:      "_raw",
 		FieldType: "string",
 	}
@@ -145,13 +144,13 @@ func TestGetSearchResults(t *testing.T) {
 	message1map := make(map[string]interface{})
 	message0map["_messageid"] = "messsageZero"
 	message0map["_raw"] = `{ "host" : "test.host0", "client_ip" : "0.0.0.0", "number" : "0" }`
-	message0 := &SearchJobResultMessage{
+	message0 := SearchJobResultMessage{
 		Map: message0map,
 	}
 	messages = append(messages, message0)
 	message1map["_messageid"] = "messageOne"
 	message1map["_raw"] = `{ "host" : "test.host1", "client_ip" : "127.0.0.1", "number" : "1" }`
-	message1 := &SearchJobResultMessage{
+	message1 := SearchJobResultMessage{
 		Map: message1map,
 	}
 	messages = append(messages, message1)
@@ -165,7 +164,7 @@ func TestGetSearchResults(t *testing.T) {
 		if r.Method != "GET" {
 			t.Errorf("Expected GET request, go %s", r.Method)
 		}
-		expectedURL := fmt.Sprintf("/search/jobs/%s/messages", testSearchJobResultsRequest.ID)
+		expectedURL := fmt.Sprintf("/search/jobs/%s/messages", testSearchJob.ID)
 
 		if r.URL.EscapedPath() != expectedURL {
 			t.Errorf("Expected request to %s, got %s", expectedURL, r.URL.EscapedPath())
@@ -176,8 +175,11 @@ func TestGetSearchResults(t *testing.T) {
 	defer ts.Close()
 
 	c, err := NewClient("accessToken", ts.URL)
-	var cookies []*http.Cookie
-	returnedResults, err := c.GetSearchResults(testSearchJobResultsRequest, cookies)
+	if err != nil {
+		t.Errorf("error creating new client in search results test")
+	}
+	testSearchJob.apiClient = c
+	returnedResults, err := testSearchJob.GetSearchResults(0, 2)
 	if err != nil {
 		t.Errorf("GetSearchJobResults() returned an error: %s", err)
 	}
